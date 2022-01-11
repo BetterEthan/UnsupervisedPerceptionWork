@@ -1,0 +1,166 @@
+  // #include <time.h>
+  // #include <stdio.h>
+
+  // #include "gSLICr_Lib/gSLICr.h"
+  // #include "NVTimer.h"
+
+  // #include "opencv2/highgui/highgui.hpp"
+  // #include "opencv2/core/core.hpp"
+  // #include "opencv2/opencv.hpp"
+  // #include <string>
+
+  #include <stdio.h>
+
+  // using namespace std;
+  // using namespace cv;
+
+
+  int add_int(int, int);
+  float add_float(float, float);
+  // void getPicture();
+  int add_int(int num1, int num2)
+  {
+    return num1 + num2;
+  }
+  float add_float(float num1, float num2)
+  {
+    return num1 + num2;
+  }
+
+  // void getPicture()
+  // {
+	//   Mat oldFrame, frame;
+  //   VideoCapture cap;
+  //   cap.open("../fast.mp4"); 
+  //   cap.read(oldFrame);
+  //   imshow("boundry_draw_frame", oldFrame);
+  //   waitKey(1);
+  // }
+
+
+
+
+
+
+
+
+
+
+
+  from ctypes import *
+import numpy as np
+import ctypes as C
+import cv2
+add_plus = CDLL('./libadder.so')
+image = add_plus.getPicture_plus()
+print(image)
+
+sum = add_plus.add_integer_plus(4,5)
+print("sum: " + str(sum))
+# 使用float类型变量作为函数参数
+a = c_float(5.5)
+b = c_float(4.1)
+add_float = add_plus.add_float_plus
+add_float.restype = c_float
+sum_float = add_plus.add_float_plus(a,b)
+print(sum_float)
+
+# # add_plus = C.cdll.LoadLibrary('./libadder.so')
+# def getfg(img):
+#     ptr = add_plus.getfg(img.shape[0],img.shape[1],img.ctypes.data_as(C.POINTER(C.c_ubyte)))
+
+#     buf = (C.c_ubyte * img.shape[0] * img.shape[1]  * 1).from_address(ptr)
+#     res = np.ndarray(buffer=buf, dtype=np.uint8,
+#                        shape=(img.shape[0], img.shape[1], 1))
+#     return res
+
+
+# if __name__ == '__main__':
+#     c = cv2.VideoCapture(0)
+#     while 1:
+#         _, f = c.read()
+#         cv2.imshow('f', f)
+#         cv2.imshow('fg', getfg(f))
+#         if cv2.waitKey(1) == 27:
+#             exit(0)
+
+
+
+
+
+
+
+
+
+
+
+
+#include <time.h>
+#include <stdio.h>
+
+#include "gSLICr_Lib/gSLICr.h"
+#include "NVTimer.h"
+
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/core/core.hpp"
+#include "opencv2/opencv.hpp"
+#include <string>
+
+using namespace std;
+using namespace cv;
+
+#include <stdio.h>
+#include <iostream>
+using namespace std;
+int add_integer(int a , int b);
+float add_float(float a, float b);
+Mat getPicture();
+
+
+int add_integer(int a , int b){
+  return a + b;
+}
+float add_float(float a, float b){
+  return a + b;
+}
+extern "C"{
+  int add_integer_plus(int a , int b){
+    return add_integer(a, b);
+  }
+  float add_float_plus(float a, float b){
+    return add_float(a ,b);
+  }
+
+  Mat getPicture_plus()
+  {
+    return getPicture();
+  }
+}
+
+// cv::BackgroundSubtractorMOG2 *mog = cv::createBackgroundSubtractorMOG2 (500, 16, false);
+
+// extern "C" void getfg(int rows, int cols, unsigned char* imgData,
+//         unsigned char *fgD) {
+//     cv::Mat img(rows, cols, CV_8UC3, (void *) imgData);
+//     cv::Mat fg(rows, cols, CV_8UC1, fgD);
+//     mog->apply(img, fg);
+// }
+
+
+
+Mat getPicture()
+{
+  Mat oldFrame, frame;
+  VideoCapture cap;
+  cap.open("../fast.mp4"); 
+  // while(1)
+  // {
+  //   cap.read(oldFrame);
+  //   imshow("boundry_draw_frame", oldFrame);
+  //   waitKey(1);
+  // }
+  cap.read(oldFrame);
+
+  return oldFrame;
+
+}
