@@ -84,6 +84,12 @@ cv::Mat transformImageFromPy(int height, int width, uchar* data)
   return src;
 }
 
+cv::Mat transformImageFromPyOneChannel(int height, int width, uchar* data)
+{
+  cv::Mat src(height, width, CV_8UC1, data);
+  return src;
+}
+
 uchar* transformImageFromCplus(cv::Mat dst)
 {
 	uchar* buffer = (uchar*)malloc(sizeof(uchar)*dst.rows*dst.cols*3);
@@ -177,7 +183,8 @@ DLLEXPORT  uchar* getSuperPixelMap(int height, int width, uchar* data) {
 
 
 vector<cv::Mat> patches;
-DLLEXPORT  uchar* cpp_canny(int height, int width, uchar* data) {
+Mat semanticMap8U;
+DLLEXPORT  void processImageBySLC(int height, int width, uchar* data) {
 	gSLICr::objects::settings my_settings;
 	my_settings.img_size.x = width;
 	my_settings.img_size.y = height;
@@ -211,7 +218,7 @@ DLLEXPORT  uchar* cpp_canny(int height, int width, uchar* data) {
 
   Mat semanticMap = gSLICr_engine->getSuperPixelsMap();
 
-  Mat semanticMap8U;
+  
   semanticMap.convertTo(semanticMap8U, CV_8U);
 
 
@@ -277,7 +284,212 @@ DLLEXPORT  uchar* cpp_canny(int height, int width, uchar* data) {
 	// delete out_img;
 	// out_img = 0;
 
-  	uchar* cc = transformImageFromCplus(semanticMap8U);
+  	// uchar* cc = transformImageFromCplus(semanticMap8U);
+	// return cc;
+
+}
+
+
+
+//创建颜色表，每种颜色只有一个像素大小
+Mat color_bar = Mat(1, 13 * 3 * 3, CV_8UC3);//色板
+unsigned char *pBar = color_bar.data;
+void Create_ColorBar() {//创建颜色表函数
+						//颜色空间的分割H: [0, 180]  S : [0, 255] V : [0, 255],一共有颜色13*3*3=117种彩色
+	int H[13] = { 180,120,60,160,100,40,150,90,30,140,80,20,10 };
+	int S[3] = { 255,100,30 };
+	int V[3] = { 255,180,90 };
+ 
+ 
+	Mat color = Mat(1, 13 * 3 * 3, CV_8UC3);//创建存放颜色的容器
+	unsigned char *pColor = color.data;
+ 
+ 
+	int h = 0, s = 0, v = 0;
+	for (int ba = 0; ba < 13 * 3 * 3; v++, s++, h++, ba++) {
+		if (h == 13) h = 0;
+		if (s == 3 * 13) s = 0;
+		if (v == 3 * 13 * 3) v = 0;
+		pColor[ba * 3 + 0] = H[h];
+		pColor[ba * 3 + 1] = S[s / 13];
+		pColor[ba * 3 + 2] = V[v / 13 / 3];
+	}
+	cvtColor(color, color_bar, CV_HSV2BGR);
+}
+
+
+
+DLLEXPORT  uchar* processImageFromLabels(int height, int width, uchar* data) {
+	// Create_ColorBar();
+  	cv::Mat labelV = transformImageFromPyOneChannel(height,width,data);
+	vector<Vec3b> colorList;
+	colorList.push_back(Vec3b(255,0,0)); 	//赤1
+	colorList.push_back(Vec3b(255,165,0));  //橙2
+	colorList.push_back(Vec3b(255,255,0));  //黄3
+	colorList.push_back(Vec3b(0,255,0));	//绿4
+	colorList.push_back(Vec3b(0,127,255));	//青5
+	colorList.push_back(Vec3b(0,0,255));	//蓝6
+	colorList.push_back(Vec3b(139,0,255));	//紫7
+	colorList.push_back(Vec3b(255,255,255));//白8
+	colorList.push_back(Vec3b(30,105,210)); //巧克力9
+	colorList.push_back(Vec3b(147,20,255)); //深粉色10
+	colorList.push_back(Vec3b(238,130,238));//紫罗兰11
+	colorList.push_back(Vec3b(230,216,173));//天蓝色12
+
+
+	Mat resizeLabel = Mat(semanticMap8U.rows/100, semanticMap8U.cols/100, CV_8UC1);
+
+	cout << semanticMap8U.rows/100 << ", " << semanticMap8U.cols/100 << endl;
+
+	
+	for (int j = 0; j < resizeLabel.rows; j++) //rows行, cols列
+		for(int i=0;i<resizeLabel.cols;i++)  // i是x
+	{
+		resizeLabel.at<uchar>(j,i) = labelV.at<uchar>(i+j*resizeLabel.cols,0);
+	}
+
+	for(int times=0;times<5;times++)//滤波次数
+		for (int j = 0; j < resizeLabel.rows; j++) //rows行, cols列
+			for(int i=0;i<resizeLabel.cols;i++)  // i是x
+		{
+			int count = 0;
+			int specital = 0;
+			if(j>0)
+			{
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j-1,i)) count++; else;
+			}
+			else
+			{
+				count++;
+				specital++;
+			}
+				
+
+			if(j<resizeLabel.rows-1)
+			{
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j+1,i)) count++; else;
+			}
+			else
+			{
+				count++;
+				specital++;
+			}
+
+			if(i>0)
+			{
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j,i-1)) count++; else;
+			}
+			else
+			{
+				count++;
+				specital++;
+			}
+
+			if(i<resizeLabel.cols-1)
+			{
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j,i+1)) count++; else;
+			}
+			else
+			{
+				count++;
+				specital++;
+			}
+
+			if(specital == 0)
+			{
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j+1,i+1)) count++; else;
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j-1,i+1)) count++; else;
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j+1,i-1)) count++; else;
+				if(resizeLabel.at<uchar>(j,i) == resizeLabel.at<uchar>(j-1,i-1)) count++; else;
+			}
+
+			
+
+
+
+			if(count <= 1)
+			{
+				if(i == resizeLabel.cols-1)
+				{
+					resizeLabel.at<uchar>(j,i) = resizeLabel.at<uchar>(j,i-1);
+				}
+				else
+				{
+					resizeLabel.at<uchar>(j,i) = resizeLabel.at<uchar>(j,i+1);
+				}
+				
+				
+			}
+
+			if(specital == 2)
+			{
+				if(count <= 2)
+				{
+					if(i == resizeLabel.cols-1)
+					{
+						resizeLabel.at<uchar>(j,i) = resizeLabel.at<uchar>(j,i-1);
+					}
+					else
+					{
+						resizeLabel.at<uchar>(j,i) = resizeLabel.at<uchar>(j,i+1);
+					}
+					
+					
+				}
+			}
+				
+
+			// resizeLabel.at<uchar>(j,i) = labelV.at<uchar>(i+j*resizeLabel.cols,0);
+		}	
+
+
+	Mat labelV2 = Mat(labelV.rows, 	1, CV_8UC1);
+	for (int j = 0; j < resizeLabel.rows; j++) //rows行, cols列
+		for(int i=0;i<resizeLabel.cols;i++)  // i是x
+	{
+		labelV2.at<uchar>(i+j*resizeLabel.cols,0) = resizeLabel.at<uchar>(j,i);
+	}
+
+	// cout << resizeLabel << endl;
+	//semanticMap8U.rows 1080
+	//semanticMap8U.cols 1920
+	Mat resultMap = Mat(semanticMap8U.rows, semanticMap8U.cols, CV_8UC3);
+
+
+	//根据类别的label赋值
+	for(int i=0;i<semanticMap8U.cols;i++)  // i是x
+		for (int j = 0; j < semanticMap8U.rows; j++) //rows行, cols列
+		{
+			int lab_ = labelV2.at<uchar>(semanticMap8U.at<uchar>(j,i),0);
+			
+			resultMap.at<Vec3b>(j,i) = colorList[lab_];
+		}
+
+
+	colorList.clear();
+  	uchar* cc = transformImageFromCplus(resultMap);
+	return cc;
+
+}
+
+
+
+DLLEXPORT  uchar* processImageFromLabels2(int height, int width, uchar* data) {
+	// Create_ColorBar();
+  	cv::Mat labelV = transformImageFromPyOneChannel(height,width,data);
+
+	Mat resultMap = Mat(semanticMap8U.rows, semanticMap8U.cols, CV_8UC1);
+	//根据类别的label赋值
+	for(int i=0;i<semanticMap8U.cols;i++)  // i是x
+		for (int j = 0; j < semanticMap8U.rows; j++) //rows行, cols列
+		{
+			int lab_ = labelV.at<uchar>(semanticMap8U.at<uchar>(j,i),0);
+			
+			resultMap.at<uchar>(j,i) = lab_;
+		}
+
+
+  	uchar* cc = transformImageFromCplus(resultMap);
 	return cc;
 
 }

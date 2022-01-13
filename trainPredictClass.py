@@ -74,7 +74,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.hidden1 = nn.Linear(512,256)
         self.hidden2 = nn.Linear(256,64)
-        self.predict = nn.Linear(64,10)
+        self.predict = nn.Linear(64,14)
 
     def forward(self, x):
         x = F.relu(self.hidden1(x))

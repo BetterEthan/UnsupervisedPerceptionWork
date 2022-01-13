@@ -17,10 +17,10 @@ class LearnTerrain():
         # self.MappingNode = np.append(self.MappingNode, data, axis=0)
 
     def  setModelFromFile(self):
-        with open("tactileModle.pkl",'rb') as file:
+        with open("personalModels/tempData/tactileModle.pkl",'rb') as file:
             self.tactileModel  = pickle.loads(file.read())
 
-        with open("visualModle.pkl",'rb') as file:
+        with open("personalModels/tempData/visualModle.pkl",'rb') as file:
             self.visualModel  = pickle.loads(file.read())
 
     def plotTactileCognitiveMap(self):

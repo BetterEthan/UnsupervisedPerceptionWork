@@ -77,8 +77,7 @@ model.load_models()
 model.contrastive_encoder.to(config["device"])
 
 trainPredictClassModel = Net()
-trainPredictClassModel = torch.load('1trainPredictClass.pth')
-
+trainPredictClassModel = torch.load('./personalModels/14classes/1trainPredictClass.pth')
 
 
 # latentData =  np.load('latentDataNew32.npy')
@@ -124,7 +123,6 @@ def getColorArray():
     aaa = mmmm[:,0:3]
     return aaa
     
-
 
 # img5 a x b x channels
 def getSemanticPicture(img5, num): 
@@ -262,7 +260,7 @@ def getSemanticPicture2(patchList, num):
 
 
 
-def cpp_canny(img):
+def processImageBySLC(img):
     # if len(img.shape)>=3 and img.shape[-1]>1:
     #     gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
@@ -273,15 +271,13 @@ def cpp_canny(img):
     frame_data = frame_data.ctypes.data_as(ctypes.c_char_p)
     
     # 設置輸出數據類型爲uint8的指針
-    dll.cpp_canny.restype = ctypes.POINTER(ctypes.c_uint8)
+    dll.processImageBySLC.restype = ctypes.POINTER(ctypes.c_uint8)
      
     # 調用dll裏的cpp_canny函數
-    pointer = dll.cpp_canny(h,w,frame_data)
+    pointer = dll.processImageBySLC(h,w,frame_data)
     
     # 從指針指向的地址中讀取數據，並轉爲numpy array
-    np_canny =  np.array(np.fromiter(pointer, dtype=np.uint8, count=h*w*1))
-    
-    return pointer,np_canny.reshape((h,w,1))
+    # np_canny =  np.array(np.fromiter(pointer, dtype=np.uint8, count=h*w*1))
 
 def getPatches(num):
     h,w=96,96
@@ -304,76 +300,45 @@ def getPatches(num):
 
 
 
+def processImageFromLabels(lableV):
+    # if len(img.shape)>=3 and img.shape[-1]>1:
+    #     gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
-
-# dll=CDLL('./SLIC/build/libadder.so') 
-# # #视频的绝对路径 
-# filename = './SLIC/fast.mp4' 
-# # #可以选择解码工具 
-# vid = imageio.get_reader(filename, 'ffmpeg') 
-# ccs = cv2.VideoCapture("./SLIC/fast.mp4")
-
-# for num,im in enumerate(vid): 
-#     #image的类型是mageio.core.util.Image可用下面这一注释行转换为arrary 
-#     # if num<0:
-#     #     _, image = ccs.read()
-#     #     continue
-#     _, image = ccs.read()
-#     # 获得patches
-#     ptr,semanticMap=cpp_canny(image)
-#     dll.release(ptr) # 將內存釋放
-#     patchList = []
-
-#     for i in range(190):
-#         ptr2,patches=getPatches(i)
-
-#         dll.release(ptr2) # 將內存釋放
-
-#         patches = np.transpose(patches, (2,0,1))
-
-#         pat_ = skimage.img_as_float(patches).astype(np.float64)
-
-#         patchList.append(pat_)
-
-#         # pp = np.transpose(patches, (1,2,0))
-#         # cv2.imshow('xxx',pp)
-#         # cv2.waitKey(10)
-
-#         pp = np.transpose(pat_, (1,2,0))
-#         print(pp[:,:,1])
-#         input("xxxxxxvvvxxx")
-
-
-#     # input("xxxxxxvvvxxx")
+    h,w=lableV.shape[0],1 
     
-#     dll.clearVector() # 將內存釋放
+    # 獲取numpy對象的數據指針
+    frame_data = np.asarray(lableV, dtype=np.uint8)
+    frame_data = frame_data.ctypes.data_as(ctypes.c_char_p)
     
-#     getSemanticPicture2(patchList, num)
+    # 設置輸出數據類型爲uint8的指針
+    dll.processImageFromLabels2.restype = ctypes.POINTER(ctypes.c_uint8)
+    # 調用dll裏的cpp_canny函數
+    pointer = dll.processImageFromLabels2(h,w,frame_data)
+    # 從指針指向的地址中讀取數據，並轉爲numpy array
+    data = np.fromiter(pointer, dtype=np.uint8, count=1920*1080*1)
+    np_canny =  np.array(data)
+    return pointer,np_canny.reshape((1080,1920,1))
 
-#     # pp = np.transpose(patchList[1], (1,2,0))
-#     cv2.imshow('xxx',image)
-
-#     cv2.waitKey(1)
-#     # print(pp)
-#     # print("@@@@@@@@@@@")
-
-#     input("&&&&&&&&&&&&&&")
-
-
+import time
 
 
 dll=CDLL('./SLIC/build/libadder.so') 
 #视频的绝对路径 
-filename = './SLIC/fast.mp4' 
+filename = './videos/fffast2.mp4' 
 #可以选择解码工具 
 vid = imageio.get_reader(filename, 'ffmpeg') 
 for num,im in enumerate(vid): 
     #image的类型是mageio.core.util.Image可用下面这一注释行转换为arrary 
-    if(num % 30 == 0 and num > 0):
-        ptr,semanticMap=cpp_canny(im)
-        dll.release(ptr) # 將內存釋放
-        patchList = []
+    if(num % 3 == 0 and num > 23):
+        t1 = time.time()
 
+        # 通过SLIC处理图像
+        processImageBySLC(im)
+
+        patchList = []
+        
+        t2 = time.time()
+        print("time1:",t2-t1)
         for i in range(190):
             ptr2,patches=getPatches(i)
 
@@ -385,159 +350,60 @@ for num,im in enumerate(vid):
 
             patchList.append(pat_)
 
-            # pp = np.transpose(patches, (1,2,0))
-            # cv2.imshow('xxx',pp)
-            # cv2.waitKey(10)
-
-            # pp = np.transpose(pat_, (1,2,0))
-            # print(pp[:,:,1])
-            # input("xxxxxxvvvxxx")
-
+        t2 = time.time()
+        print("time2:",t2-t1)
         dll.clearVector() # 將內存釋放
 
         lableV = getSemanticPicture2(patchList, num)
-        print(lableV)
-        resultMap = np.zeros((semanticMap.shape[0],semanticMap.shape[1]))
-        for aa in range(semanticMap.shape[0]):
-            for bb in range(semanticMap.shape[1]):
-                resultMap[aa][bb] = lableV[int(semanticMap[aa][bb])]
+        # print(lableV.numpy().reshape(1,190))
+        # print(lableV.numpy().reshape(10,19))
+        t2 = time.time()
+        print("time3:",t2-t1)
+
+        ptr,resultM_ = processImageFromLabels(lableV)
+        dll.release(ptr) # 將內存釋放
+
+
+        # resultMap = np.zeros((semanticMap.shape[0],semanticMap.shape[1]))
+        # for aa in range(semanticMap.shape[0]):
+        #     for bb in range(semanticMap.shape[1]):
+        #         resultMap[aa][bb] = lableV[int(semanticMap[aa][bb])]
+
+        t2 = time.time()
+        print("time4:",t2-t1)
+
+
+
 
         plt.figure(1, figsize=(10, 3))
         plt.subplot(121)
         plt.axis('off')
 
-        plt.imshow(im,cmap='Greys')
+        plt.imshow(im) # ,cmap='Greys'
 
         plt.figure(1, figsize=(10, 4))
         plt.subplot(122)
         plt.axis('off')
-        pylab.imshow(resultMap) 
-        pylab.show() 
+        imagexx = pylab.imshow(resultM_) 
+        
+        # plt.savefig('./14classesImage/'+str(num)+'picture.png',bbox_inches='tight',dpi=500,pad_inches=0.0)
 
+
+        t2 = time.time()
+        print("time5:",t2-t1)
+        print(num)
+        print()
+
+
+        pylab.show() 
+        # 加快保存速度
+        plt.close()
         # input("xxxxxxvvvxxx")
 
-        # print(num)
 
-        # # print(im.shape)
-        # # input("xx..........xx")
-        # image = skimage.img_as_float(im).astype(np.float64) 
-        # print(type(image))
-        # # fig = pylab.figure() 
-        # # fig.suptitle('image #{}'.format(num), fontsize=20) 
-        # pylab.imshow(semanticMap) 
-        # pylab.show() 
-        # getSemanticPicture(image, num)    
 
 input('..............')
 
-
-
-
-
-
-# #视频的绝对路径 
-# filename = './SLIC/fast.mp4' 
-# dll=CDLL('./SLIC/build/libadder.so') 
-# #可以选择解码工具 
-# vid = imageio.get_reader(filename, 'ffmpeg') 
-# for num,im in enumerate(vid): 
-#     #image的类型是mageio.core.util.Image可用下面这一注释行转换为arrary 
-#     if(num % 200 == 0 and num > 0):
-#         # print(num)
-#         image = skimage.img_as_float(im).astype(np.float64)
-#         # cv2.imshow('xxx',image)
-#         # cv2.waitKey(1000)
-#         # input("xxxxxxxxxxxxx") 
-#         # # fig = pylab.figure() 
-#         # # fig.suptitle('image #{}'.format(num), fontsize=20) 
-#         # # pylab.imshow(im) 
-#         # # pylab.show() 
-#         # getSemanticPicture(image, num)    
-#         # 获得patches
-
-#         print(type(ima))
-#         # ptr,semanticMap=cpp_canny(image)
-#         # dll.release(ptr) # 將內存釋放
-#         # patchList = []
-#         # for i in range(190):
-#         #     ptr2,patches=getPatches(i)
-#         #     dll.release(ptr2) # 將內存釋放
-
-#         #     patches = np.transpose(patches, (2,0,1))
-#         #     patchList.append(patches)
-#         #     pp = np.transpose(patches, (1,2,0))
-#         #     cv2.imshow('xxx',pp)
-#         #     cv2.waitKey(10)
-#         #     print(i)
-            
-#         # dll.clearVector() # 將內存釋放
-        
-#         # getSemanticPicture2(patchList, num)  
-
-
-# input('..............')
-
-
-
-'''
-time_start=time.time()
-for i in range(N1):
-    for j in range(N2):
-        image_ = img5[:,:,i*stride:i*stride+S,j*stride:j*stride+S]
-        imageResize.append(image_[0,:,:,:])
-
-IImage = torch.tensor(imageResize)
-Xbatch = IImage.to(model.device).float()
-
-
-_, h1  = model.contrastive_encoder(Xbatch[0:1500])  # 维数是512， 中间层输出 
-_, h2  = model.contrastive_encoder(Xbatch[1500:1564])  # 维数是512， 中间层输出 
-h = torch.cat([h1, h2], 0)
-data = Variable(h).cpu()
-output  = trainPredictClassModel(data)
-lableV = output.argmax(dim=1)
-aaa = np.mat(np.zeros([1,N1*N2]))
-for jj in range(len(lableV)):
-    aaa[0,jj] = cognitiveModel.predictTactileInfo(lableV[jj])
-    # aaa[jj] = cognitiveModel.predictTactileInfo(lableV[jj])
-
-semanticMap = aaa.reshape(N1,N2)
-print(aaa.shape)
-time_end=time.time()
-
-print('totally cost',time_end-time_start)
-image_ = semanticMap.reshape(N1,N2,1)
-plt.imshow(image_,cmap='Greys')
-plt.show()
-'''
-
-
-
-
-# # Create list to hold encodings and labels
-# h_list, y_list = [], []
-# # Turn on training mode for each model.
-# model.set_mode(mode="evaluation")
-# # Compute total number of batches per epoch
-# self.total_batches = len(train_loader)
-# print(f"Total number of samples / batches in data set: {len(train_loader.dataset)} / {len(train_loader)}")
-#     # Attach progress bar to data_loader to check it during training. "leave=True" gives a new line per epoch
-# self.tqdm = tqdm(enumerate(train_loader), total=self.total_batches, leave=True)
-# # Go through batches
-# for i, ((Xbatch, _), Ybatch) in self.tqdm:
-#     # Move batch to the device
-#     Xbatch = Xbatch.to(self.device).float()
-#     # Forward pass on contrastive_encoder
-#     _, h = self.contrastive_encoder(Xbatch)  # 维数是512， 中间层输出
-#     # print(h.size())
-#     # input(33333333333333333333333)
-#     # print(h.cpu().detach().numpy().shape)
-#     # input()
-#     # Collect encodings
-#     h_list.append(h.cpu().detach().numpy())
-#     # Collect labels
-#     y_list.append(Ybatch.cpu().detach().numpy().reshape(-1,1))
-# # Return values after concatenating encodings along row dimension. Flatten Y labels.
 
 
 
